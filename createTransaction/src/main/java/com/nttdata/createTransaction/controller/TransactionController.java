@@ -208,14 +208,13 @@ public class TransactionController {
       Map<String, Object> salida = new HashMap<>();      
       HashMap<String, Object> product_data = validateProduct(new_trans.getIdProduct());  
       String message = (product_data.get("message")).toString();
+      Product current_product = Product.class.cast(product_data.get("product"));
 
       if(message == "Id de producto no encontrado"){
           log.info("id incorrecto");
           salida.put("message", "Id de producto no encontrado");  
       }else{
-          
-          Product current_product = new Product(); //product_data.get("product");
-          
+         
 
           log.info("entro al else");
           String transactionType = new_trans.getTransactionType();
