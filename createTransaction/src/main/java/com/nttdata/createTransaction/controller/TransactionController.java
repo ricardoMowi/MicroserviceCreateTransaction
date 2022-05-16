@@ -1,9 +1,13 @@
 package com.nttdata.createTransaction.controller;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.SimpleFormatter;
 
 import com.nttdata.createTransaction.entity.Product;
 import com.nttdata.createTransaction.entity.Transaction;
@@ -102,9 +106,11 @@ public class TransactionController {
     public HashMap<String, Object> validateProduct(String id) {        
       HashMap<String, Object> map = new HashMap<>();
       Optional<Product> doc = productRepo.findById(id);
-      if (doc.isPresent()) {          
+      if (doc.isPresent()) {
+          Product current_pro = Product.class.cast(doc.get());          
           //Armar hashmap
-          map.put("product", doc);
+          map.put("message", "Id de producto encontrado");
+          map.put("product", current_pro);
       }else{
           map.put("message", "Id de producto no encontrado");
       }
@@ -116,17 +122,48 @@ public class TransactionController {
   public HashMap<String, Object> createDeposit(@RequestBody Product product, Double amount, Transaction transaction  ){
       HashMap<String, Object> map = new HashMap<>();
       try{
+          log.info("createDeposit:::::");  
+          if(product.getProductType().equals("FIXED_TERM_ACCOUNT") && product.getTransactionDate() != null){
+            log.info("entrada 1");
 
-          //Actualizar producto
-          Double New_amount = product.getAmount() + amount;
-          product.setAmount(New_amount);
-          productService.createProduct(product);
-          //Crear transacción
-          map.put("transaction", transactionService.createTransaction(transaction));
+            DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy"); //yyyy/MM/dd
+            Date current_date = new Date();            
+            String s_current_date = dateFormat.format(current_date).toString();         
 
-      }catch(Exception e) {
+
+            String transactionDate = product.getTransactionDate(); //new SimpleDateFormat("dd/MM/yyyy").parse(product.getTransactionDate());            
+            log.info(s_current_date);
+            log.info("entrada 1.1");
+            log.info(transactionDate);
+            log.info("entrada 1.2");
+
+            if(s_current_date.equals(transactionDate) == false){
+              log.info("entrada 2");
+              map.put("message", "No se encuentra en la fecha de transacción registrada en la cuenta de plazo fijo.");
+            }else{
+              log.info("entrada 3.0");
+              //Actualizar producto
+              Double New_amount = product.getAmount() + amount;
+              product.setAmount(New_amount);
+              productService.createProduct(product);
+              //Crear transacción
+              map.put("transaction", transactionService.createTransaction(transaction));
+            }
+
+          }else{
+            log.info("entrada 3");
+            //Actualizar producto
+            Double New_amount = product.getAmount() + amount;
+            product.setAmount(New_amount);
+            productService.createProduct(product);
+            //Crear transacción
+            map.put("transaction", transactionService.createTransaction(transaction));
+          
+          }
+
+      } catch(Exception e) {
           e.printStackTrace();
-          map.put("mensaje", "error");
+          map.put("message", "error");
       }                    
       return map;
   }
@@ -145,7 +182,7 @@ public class TransactionController {
 
     }catch(Exception e) {
         e.printStackTrace();
-        map.put("mensaje", "error");
+        map.put("message", "error");
     }                    
     return map;
   }
@@ -159,7 +196,7 @@ public class TransactionController {
         Double new_amount = current_amount - amount;
 
         if( new_amount < 0){
-          map.put("mensaje", "Saldo insuficiente para la transacción");
+          map.put("message", "Saldo insuficiente para la transacción");
         }else{
           product.setAmount(new_amount);
           productService.createProduct(product);
@@ -169,7 +206,7 @@ public class TransactionController {
 
     }catch(Exception e) {
         e.printStackTrace();
-        map.put("mensaje", "error");
+        map.put("message", "error");
     }                    
     return map;
   }
@@ -183,17 +220,38 @@ public class TransactionController {
         Double new_amount = current_amount - amount;
 
         if( new_amount < 0){
-          map.put("mensaje", "Saldo insuficiente para la transacción");
+          map.put("message", "Saldo insuficiente para la transacción");
         }else{
-          product.setAmount(new_amount);
-          productService.createProduct(product);
-          //Crear transacción
-          map.put("transaction", transactionService.createTransaction(transaction));
+
+          if(product.getProductType().equals("FIXED_TERM_ACCOUNT") && product.getTransactionDate() != null){
+            DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy"); 
+            Date current_date = new Date();            
+            String s_current_date = dateFormat.format(current_date).toString();         
+
+
+            String transactionDate = product.getTransactionDate();           
+
+            if(s_current_date.equals(transactionDate) == false){
+              log.info("entrada 2");
+              map.put("message", "No se encuentra en la fecha de transacción registrada en la cuenta de plazo fijo.");
+            }else{
+              product.setAmount(new_amount);
+              productService.createProduct(product);
+              //Crear transacción
+              map.put("transaction", transactionService.createTransaction(transaction));
+            }
+          }else{
+            product.setAmount(new_amount);
+            productService.createProduct(product);
+            //Crear transacción
+            map.put("transaction", transactionService.createTransaction(transaction));
+          }
+
         }       
 
     }catch(Exception e) {
         e.printStackTrace();
-        map.put("mensaje", "error");
+        map.put("message", "error");
     }                    
     return map;
   }
@@ -204,39 +262,54 @@ public class TransactionController {
   @ResponseBody
   public ResponseEntity<Map<String, Object>> createTransaction(@RequestBody Transaction new_trans){
 
-      log.info("entrando a método createProduct");
+      log.info("entrando a método createTransaction");
       Map<String, Object> salida = new HashMap<>();      
       HashMap<String, Object> product_data = validateProduct(new_trans.getIdProduct());  
       String message = (product_data.get("message")).toString();
-      Product current_product = Product.class.cast(product_data.get("product"));
+      
 
       if(message == "Id de producto no encontrado"){
           log.info("id incorrecto");
           salida.put("message", "Id de producto no encontrado");  
-      }else{
-         
-
+      }else{         
+          Product current_product = Product.class.cast(product_data.get("product"));
           log.info("entro al else");
           String transactionType = new_trans.getTransactionType();
           log.info(transactionType);
+          
+          //Cantidad de transacciones
+          List <Transaction> Q_transactions = transRepo.findByIdProduct(new_trans.getIdProduct());
+          int q_transactions = Q_transactions.size();
+          log.info("cantidad de tran::::: "+ q_transactions);
 
-          if(transactionType.equals("DEPOSIT" )){
+          //Asignar fecha de creación
+          java.util.Date date = new java.util.Date();
+          new_trans.setRegisterDate(date);
+          //Asignar status
+          new_trans.setStatus("ACTIVE");
+
+          if(current_product.getProductType().equals("SAVING_ACCOUNT") &&  current_product.getMaximumTransactionLimit() <= q_transactions)
+          {
+            salida.put("ouput", "El número de transacciones permitidas para la cuenta fue alcanzada");
+          }else{
+            if(transactionType.equals("DEPOSIT" )){
               log.info("1");
               HashMap<String, Object> create_trans_a = createDeposit(  current_product, new_trans.getAmount(), new_trans );
               salida.put("ouput", create_trans_a);
-          }else if(transactionType == "PAYMENT"){
-              log.info("2");
-              HashMap<String, Object> create_trans_b = createPayment(  current_product, new_trans.getAmount(), new_trans );
-              salida.put("ouput", create_trans_b);
-          }else if(transactionType == "CONSUMPTION"){
+            }else if(transactionType.equals("PAYMENT")){
+                log.info("2");
+                HashMap<String, Object> create_trans_b = createPayment(  current_product, new_trans.getAmount(), new_trans );
+                salida.put("ouput", create_trans_b);
+            }else if(transactionType.equals("CONSUMPTION")){
+                log.info("3");
+                HashMap<String, Object> create_trans_c = createConsumption(  current_product, new_trans.getAmount(), new_trans );
+                salida.put("ouput", create_trans_c);
+            }else if(transactionType.equals("BANK_WHITDRAWALL")){
               log.info("3");
-              HashMap<String, Object> create_trans_c = createConsumption(  current_product, new_trans.getAmount(), new_trans );
-              salida.put("ouput", create_trans_c);
-          }else if(transactionType == "BANK_WHITDRAWALL"){
-            log.info("3");
-            HashMap<String, Object> create_trans_d = createBankWithdrawall(  current_product, new_trans.getAmount(), new_trans );
-            salida.put("ouput", create_trans_d);
-        }
+              HashMap<String, Object> create_trans_d = createBankWithdrawall(  current_product, new_trans.getAmount(), new_trans );
+              salida.put("ouput", create_trans_d);
+            }
+          }
 
       }  
       
