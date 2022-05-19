@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.SimpleFormatter;
 
 import com.nttdata.createTransaction.entity.Product;
 import com.nttdata.createTransaction.entity.Transaction;
