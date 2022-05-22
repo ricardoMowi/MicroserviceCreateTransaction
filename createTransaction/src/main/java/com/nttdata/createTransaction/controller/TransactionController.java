@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.fasterxml.jackson.databind.deser.std.NumberDeserializers.DoubleDeserializer;
 import com.nttdata.createTransaction.entity.Product;
 import com.nttdata.createTransaction.entity.Transaction;
 import com.nttdata.createTransaction.repository.ProductRepository;
@@ -98,29 +99,60 @@ public class TransactionController {
     } 
 
 
-    // Crear Servicio para Registrar transacciones: depósito, retiro, pago , consumo
-    // Campos Obligatorios: Id cliente (valido) , tipo de cuenta, monto
+  // Crear Servicio para Registrar transacciones: depósito, retiro, pago , consumo
+  // Campos Obligatorios: Id cliente (valido) , tipo de cuenta, monto
 
-    //Clase interna para validar producto bancario
-    public HashMap<String, Object> validateProduct(String id) {        
-      HashMap<String, Object> map = new HashMap<>();
-      Optional<Product> doc = productRepo.findById(id);
-      if (doc.isPresent()) {
-          Product current_pro = Product.class.cast(doc.get());          
-          //Armar hashmap
-          map.put("message", "Id de producto encontrado");
-          map.put("product", current_pro);
-      }else{
-          map.put("message", "Id de producto no encontrado");
-      }
-      return map;
+  //Clase interna para validar producto bancario
+  public HashMap<String, Object> validateProduct(String id) {        
+    HashMap<String, Object> map = new HashMap<>();
+    Optional<Product> doc = productRepo.findById(id);
+    if (doc.isPresent()) {
+        Product current_pro = Product.class.cast(doc.get());          
+        //Armar hashmap
+        map.put("message", "Id de producto encontrado");
+        map.put("product", current_pro);
+    }else{
+        map.put("message", "Id de producto no encontrado");
+    }
+    return map;
   }
 
+
+  // Todas las cuentas bancarias tendrán un número máximo de transacciones (depósitos y retiros)
+  // Clase interna para validar si se cobrará comision
+  public HashMap<String, Object> validateNumberOfFeeTransactions(Product pro) {      
+    HashMap<String, Object> map = new HashMap<>();
+
+    List <Transaction> deposits = transRepo.findByTransactionTypeAndIdProduct("DEPOSIT",pro.getId());
+    List <Transaction> whitdrawall = transRepo.findByTransactionTypeAndIdProduct("BANK_WHITDRAWALL",pro.getId());
+    int total_transactions = deposits.size() + whitdrawall.size();
+
+    if(total_transactions >= pro.getNumberOfFreeTransactions()){
+      map.put("use_comission", "YES");
+      map.put("value_comission", "5.00");
+    }else{
+      map.put("use_comission", "NO");
+    }
+    return map;
+  }
 
   //Clase interna para crear transaccion -> depósito (DEPOSIT)
   public HashMap<String, Object> createDeposit(@RequestBody Product product, Double amount, Transaction transaction  ){
       HashMap<String, Object> map = new HashMap<>();
+      Double comission = 0.00;
       try{
+
+          //validar si será una transaccion con comision
+          transaction.setFlagWithCommission(false);
+          HashMap<String, Object> validate = validateNumberOfFeeTransactions(product);
+          String use_comission = validate.get("use_comission").toString();
+          Double value_comission = Double.parseDouble(validate.get("value_comission").toString());
+          if(use_comission.equals("YES")){
+            transaction.setFlagWithCommission(true);
+            transaction.setTransactionCommission(value_comission);
+            comission= value_comission;
+          }
+
           log.info("createDeposit:::::");  
           if(product.getProductType().equals("FIXED_TERM_ACCOUNT") && product.getTransactionDate() != null){
             log.info("entrada 1");
@@ -141,8 +173,10 @@ public class TransactionController {
               map.put("message", "No se encuentra en la fecha de transacción registrada en la cuenta de plazo fijo.");
             }else{
               log.info("entrada 3.0");
+              log.info("comision");
+              log.info(comission.toString());
               //Actualizar producto
-              Double New_amount = product.getAmount() + amount;
+              Double New_amount = product.getAmount() + amount - comission;
               product.setAmount(New_amount);
               productService.createProduct(product);
               //Crear transacción
@@ -151,8 +185,10 @@ public class TransactionController {
 
           }else{
             log.info("entrada 3");
+            log.info("comision");
+            log.info(comission.toString());
             //Actualizar producto
-            Double New_amount = product.getAmount() + amount;
+            Double New_amount = product.getAmount() + amount -comission;
             product.setAmount(New_amount);
             productService.createProduct(product);
             //Crear transacción
@@ -213,10 +249,21 @@ public class TransactionController {
   //Clase interna para crear transaccion -> retiro (BANK_WHITDRAWALL)
   public HashMap<String, Object> createBankWithdrawall(@RequestBody Product product, Double amount, Transaction transaction  ){
     HashMap<String, Object> map = new HashMap<>();
+    Double comission = 0.00;
     try{
+        //validar si será una transaccion con comision
+        transaction.setFlagWithCommission(false);
+        HashMap<String, Object> validate = validateNumberOfFeeTransactions(product);
+        String use_comission = validate.get("use_comission").toString();
+        Double value_comission = Double.parseDouble(validate.get("value_comission").toString());
+        if(use_comission.equals("YES")){
+          transaction.setFlagWithCommission(true);
+          transaction.setTransactionCommission(value_comission);
+          comission= value_comission;
+        }
         //Validar el saldo para la transacción
         Double current_amount = product.getAmount(); 
-        Double new_amount = current_amount - amount;
+        Double new_amount = current_amount - amount - comission;
 
         if( new_amount < 0){
           map.put("message", "Saldo insuficiente para la transacción");
@@ -234,12 +281,16 @@ public class TransactionController {
               log.info("entrada 2");
               map.put("message", "No se encuentra en la fecha de transacción registrada en la cuenta de plazo fijo.");
             }else{
+              log.info("comission al crear 1.0 ");
+              log.info(comission.toString());
               product.setAmount(new_amount);
               productService.createProduct(product);
               //Crear transacción
               map.put("transaction", transactionService.createTransaction(transaction));
             }
           }else{
+            log.info("comission al crear 2.0 ");
+            log.info(comission.toString());
             product.setAmount(new_amount);
             productService.createProduct(product);
             //Crear transacción
@@ -255,8 +306,43 @@ public class TransactionController {
     return map;
   }
 
+  //Clase interna para crear transaccion -> transferencia bancaria (WIRE_TRANSFER)
+  public HashMap<String, Object> createWireTransfer(@RequestBody Product product, Double amount, Transaction transaction  ){
+    HashMap<String, Object> map = new HashMap<>();
+    try{
+        //Validar el saldo para la transacción
+        Double current_amount = product.getAmount(); 
+        Double new_amount = current_amount - amount;
 
-  //Microservicio para crear cuentas
+        if( new_amount < 0){
+          map.put("message", "Saldo insuficiente para la transacción");
+        }else{
+          //Actualizar cuenta de origen
+          Double New_amount = product.getAmount() - amount;
+          product.setAmount(New_amount);
+          productService.createProduct(product);
+          //Actualizar cuenta de destino
+          Optional <Product> op_destination = productRepo.findById(transaction.getIdDestinationAccount());
+          Product destination = Product.class.cast(op_destination.get());       
+          Double New_amount_destination = destination.getAmount() + amount;
+          destination.setAmount(New_amount_destination);
+          productService.createProduct(destination);
+          //Crear transacción
+          map.put("transaction", transactionService.createTransaction(transaction));
+
+        }
+
+
+
+    }catch(Exception e) {
+        e.printStackTrace();
+        map.put("message", "error");
+    }                    
+    return map;
+  }
+
+
+  //Microservicio para crear transacciones
   @PostMapping("createTransaction")
   @ResponseBody
   public ResponseEntity<Map<String, Object>> createTransaction(@RequestBody Transaction new_trans){
@@ -305,6 +391,10 @@ public class TransactionController {
                 salida.put("ouput", create_trans_c);
             }else if(transactionType.equals("BANK_WHITDRAWALL")){
               log.info("3");
+              HashMap<String, Object> create_trans_d = createBankWithdrawall(  current_product, new_trans.getAmount(), new_trans );
+              salida.put("ouput", create_trans_d);
+            }else if(transactionType.equals("WIRE_TRANSFER")){
+              log.info("4");
               HashMap<String, Object> create_trans_d = createBankWithdrawall(  current_product, new_trans.getAmount(), new_trans );
               salida.put("ouput", create_trans_d);
             }

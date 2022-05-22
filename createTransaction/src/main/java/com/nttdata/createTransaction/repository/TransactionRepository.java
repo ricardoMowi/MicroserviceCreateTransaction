@@ -8,4 +8,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface TransactionRepository extends MongoRepository <Transaction, String> {
     List<Transaction> findByIdProduct (String IdProduct);
+    List<Transaction> findByTransactionTypeAndIdProduct (String transactionType, String IdProduct);
+
 }
