@@ -178,7 +178,8 @@ public class TransactionController {
               Double New_amount = product.getAmount() + amount - comission;
               product.setAmount(New_amount);
               productService.createProduct(product);
-              //Crear transacción
+              //Crear transacción y actualizar balance diario
+              transaction.setNewDailyBalance(New_amount);
               map.put("transaction", transactionService.createTransaction(transaction));
             }
 
@@ -190,7 +191,8 @@ public class TransactionController {
             Double New_amount = product.getAmount() + amount -comission;
             product.setAmount(New_amount);
             productService.createProduct(product);
-            //Crear transacción
+            //Crear transacción y actualizar balance diario
+            transaction.setNewDailyBalance(New_amount);
             map.put("transaction", transactionService.createTransaction(transaction));
           
           }
@@ -211,7 +213,8 @@ public class TransactionController {
         Double New_amount = product.getAmount() + amount;
         product.setAmount(New_amount);
         productService.createProduct(product);
-        //Crear transacción
+        //Crear transacción y actualizar balance diario
+        transaction.setNewDailyBalance(New_amount);
         map.put("transaction", transactionService.createTransaction(transaction));
 
     }catch(Exception e) {
@@ -234,7 +237,8 @@ public class TransactionController {
         }else{
           product.setAmount(new_amount);
           productService.createProduct(product);
-          //Crear transacción
+          //Crear transacción y actualizar balance diario
+          transaction.setNewDailyBalance(new_amount);
           map.put("transaction", transactionService.createTransaction(transaction));
         }       
 
@@ -284,7 +288,8 @@ public class TransactionController {
               log.info(comission.toString());
               product.setAmount(new_amount);
               productService.createProduct(product);
-              //Crear transacción
+              //Crear transacción y actualizar balance diario
+              transaction.setNewDailyBalance(new_amount);
               map.put("transaction", transactionService.createTransaction(transaction));
             }
           }else{
@@ -292,7 +297,8 @@ public class TransactionController {
             log.info(comission.toString());
             product.setAmount(new_amount);
             productService.createProduct(product);
-            //Crear transacción
+            //Crear transacción y actualizar balance diario
+            transaction.setNewDailyBalance(new_amount);
             map.put("transaction", transactionService.createTransaction(transaction));
           }
 
@@ -326,7 +332,8 @@ public class TransactionController {
           Double New_amount_destination = destination.getAmount() + amount;
           destination.setAmount(New_amount_destination);
           productService.createProduct(destination);
-          //Crear transacción
+          //Crear transacción y actualizar balance diario
+          transaction.setNewDailyBalance(New_amount);
           map.put("transaction", transactionService.createTransaction(transaction));
 
         }
