@@ -47,6 +47,8 @@ public class TransactionController {
     
     //CRUD
     @GetMapping(value = "/all")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public List<Transaction> getAll() {
         log.info("lista todos");
         return transactionService.getAll();
@@ -54,6 +56,8 @@ public class TransactionController {
 
     @GetMapping("getTransaction/{id}")
     @ResponseBody
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public ResponseEntity<Map<String, Object>> getData(@PathVariable("id") String id){
       Map<String, Object> salida = new HashMap<>();
       Optional<Transaction> trans_doc = transRepo.findById(id);
@@ -75,6 +79,8 @@ public class TransactionController {
 
 
     @PutMapping("/update/{id}")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public ResponseEntity<Transaction> updateTransaction(@PathVariable("id") String id, @RequestBody Transaction temp) {
       Optional<Transaction> transaction = transRepo.findById(id);
       if (transaction.isPresent()) {
@@ -86,6 +92,8 @@ public class TransactionController {
     }
 
     @PutMapping("setInactive/{id}")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public ResponseEntity<Transaction> setInactive(@PathVariable("id") String id, @RequestBody Transaction temp_trans) {
       Optional<Transaction> trans_doc = transRepo.findById(id);
       if (trans_doc.isPresent()) {
@@ -351,6 +359,8 @@ public class TransactionController {
   //Microservicio para crear transacciones
   @PostMapping("createTransaction")
   @ResponseBody
+  @CircuitBreaker(name="createTransactionCircuit")
+  @TimeLimiter(name="createTransactionTime")
   public ResponseEntity<Map<String, Object>> createTransaction(@RequestBody Transaction new_trans){
 
       log.info("entrando a método createTransaction");
