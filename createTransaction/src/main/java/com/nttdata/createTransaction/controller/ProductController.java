@@ -27,17 +27,23 @@ public class ProductController {
     private ProductRepository productRepo;
     //CRUD
     @GetMapping(value = "/all")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public List<Product> getAll() {
         return productService.getAll();
     } 
 
     @PostMapping(value = "/create")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public Product createProduct(@RequestBody Product new_produc){
         new_produc.setStatus("ACTIVE");
         return productService.createProduct(new_produc);
     }
 
     @PutMapping("/update/{id}")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public ResponseEntity<Product> updateProduct(@PathVariable("id") String id, @RequestBody Product temp) {
       Optional<Product> product = productRepo.findById(id);
       if (product.isPresent()) {
@@ -49,6 +55,8 @@ public class ProductController {
     }
 
     @PutMapping("setInactive/{id}")
+    @CircuitBreaker(name="createTransactionCircuit")
+    @TimeLimiter(name="createTransactionTime")
     public ResponseEntity<Product> setInactive(@PathVariable("id") String id) {
       Optional<Product> product_dov = productRepo.findById(id);
       if (product_dov.isPresent()) {
